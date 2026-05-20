@@ -135,7 +135,9 @@ const copy = {
         message: "Tell me about the date, venue, repertoire, or lesson goals.",
       },
       send: "Send Message",
-      sent: "Thank you. Your email client is opening with the message ready to send.",
+      sending: "Sending...",
+      sent: "Thank you. Your message has been sent.",
+      error: "Something went wrong. Please try again or email me directly.",
     },
     footer: {
       location: "Soprano · Bratislava",
@@ -256,7 +258,9 @@ const copy = {
         message: "Napíšte dátum, miesto, repertoár alebo ciele hodín spevu.",
       },
       send: "Odoslať správu",
-      sent: "Ďakujem. Otvára sa váš emailový klient so správou pripravenou na odoslanie.",
+      sending: "Odosielam...",
+      sent: "Ďakujem. Vaša správa bola odoslaná.",
+      error: "Niečo sa nepodarilo. Skúste to prosím znova alebo mi napíšte priamo email.",
     },
     footer: {
       location: "Soprán · Bratislava",
@@ -282,7 +286,7 @@ function ServiceIcon({ type }) {
 function App() {
   const [lang, setLang] = useState("en");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [formStatus, setFormStatus] = useState("idle");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -308,18 +312,36 @@ function App() {
     });
   };
 
-  const sendMessage = (event) => {
+  const sendMessage = async (event) => {
     event.preventDefault();
     const subject = form.subject || "Portfolio inquiry";
-    const body = [
-      `${t.contact.labels.name}: ${form.name}`,
-      `${t.contact.labels.email}: ${form.email}`,
-      "",
-      form.message,
-    ].join("\n");
-    const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    setSent(true);
-    window.location.href = mailto;
+    const formData = new URLSearchParams({
+      "form-name": "contact",
+      "bot-field": "",
+      name: form.name,
+      email: form.email,
+      subject,
+      message: form.message,
+    });
+
+    setFormStatus("sending");
+
+    try {
+      const response = await fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+
+      if (!response.ok) {
+        throw new Error("Form submission failed");
+      }
+
+      setForm({ name: "", email: "", subject: "", message: "" });
+      setFormStatus("success");
+    } catch {
+      setFormStatus("error");
+    }
   };
 
   return (
@@ -511,7 +533,21 @@ function App() {
               {contactPhone}
             </a>
           </div>
-          <form className="contact-form" onSubmit={sendMessage}>
+          <form
+            className="contact-form"
+            name="contact"
+            method="POST"
+            data-netlify="true"
+            netlify-honeypot="bot-field"
+            onSubmit={sendMessage}
+          >
+            <input type="hidden" name="form-name" value="contact" />
+            <p className="visually-hidden" aria-hidden="true">
+              <label>
+                Do not fill this out if you are human:
+                <input name="bot-field" tabIndex="-1" autoComplete="off" />
+              </label>
+            </p>
             <label>
               <span>{t.contact.labels.name}</span>
               <input
@@ -556,10 +592,11 @@ function App() {
                 required
               />
             </label>
-            <button className="primary-button form-button" type="submit">
-              {t.contact.send}
+            <button className="primary-button form-button" type="submit" disabled={formStatus === "sending"}>
+              {formStatus === "sending" ? t.contact.sending : t.contact.send}
             </button>
-            {sent ? <p className="form-status">{t.contact.sent}</p> : null}
+            {formStatus === "success" ? <p className="form-status">{t.contact.sent}</p> : null}
+            {formStatus === "error" ? <p className="form-status form-status-error">{t.contact.error}</p> : null}
           </form>
         </section>
       </main>
