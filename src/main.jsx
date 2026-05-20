@@ -315,14 +315,10 @@ function App() {
   const sendMessage = async (event) => {
     event.preventDefault();
     const subject = form.subject || "Portfolio inquiry";
-    const formData = new URLSearchParams({
-      "form-name": "contact",
-      "bot-field": "",
-      name: form.name,
-      email: form.email,
-      subject,
-      message: form.message,
-    });
+    const formData = new URLSearchParams(new FormData(event.currentTarget));
+    formData.set("form-name", "contact");
+    formData.set("bot-field", "");
+    formData.set("subject", subject);
 
     setFormStatus("sending");
 
@@ -537,8 +533,9 @@ function App() {
             className="contact-form"
             name="contact"
             method="POST"
+            action="/success.html"
             data-netlify="true"
-            netlify-honeypot="bot-field"
+            data-netlify-honeypot="bot-field"
             onSubmit={sendMessage}
           >
             <input type="hidden" name="form-name" value="contact" />
